@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 install_requires = [
-    'numpy',
+    'numpy>=1.10.0',
     'scipy',
     'pandas',
     ]
@@ -12,7 +12,7 @@ setup(name='Shifted Beta-Geometric Survival Analysis',
                   'the shifted beta-geometric model.',
       classifiers=[
           "Programming Language :: Python :: 2.7",
-          "Programming Language :: Python :: 3.4",
+          "Programming Language :: Python :: 3.5",
           ],
       author='Fernando Nogueira',
       author_email='fmfnogueira@gmail.com',

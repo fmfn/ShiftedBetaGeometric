@@ -1,6 +1,6 @@
 from __future__ import print_function
-from DataHandler import DataHandler
-from ShiftedBetaGeometric import ShiftedBetaGeometric
+from .DataHandler import DataHandler
+from .ShiftedBetaGeometric import ShiftedBetaGeometric
 import numpy as np
 import pandas as pd
 
@@ -176,7 +176,7 @@ class SBGSurvival(object):
 
         # Use compute_alpha_beta to compute alpha and beta for every sample in
         # df based on the feature matrix extracted from df, x.
-        alpha, beta = self.sb.compute_alpha_beta(x, self.sb.alpha, self.sb.beta)
+        alpha, beta = self.sb._compute_alpha_beta(x, self.sb.alpha, self.sb.beta)
 
         # Return a dataframe with predictions.
         return pd.DataFrame(data=np.vstack([alpha, beta]),

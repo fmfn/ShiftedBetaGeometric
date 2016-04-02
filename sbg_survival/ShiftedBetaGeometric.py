@@ -3,7 +3,7 @@ from scipy.optimize import minimize
 from math import log10
 from datetime import datetime
 import numpy as np
-from scipy.special import hyp2f1
+from scipy.special import hyp2f1, betaln
 
 
 class ShiftedBetaGeometric(object):
@@ -89,7 +89,7 @@ class ShiftedBetaGeometric(object):
         self.n_samples = 0
 
     @staticmethod
-    def _recursive_retention_stats(alpha, beta, num_periods):
+    def _log_retention_stats(alpha, beta, num_periods):
         """
         A function to calculate the expected probabilities recursively.
         Using equation 7 from [1] and the alpha and beta coefficients
@@ -97,10 +97,10 @@ class ShiftedBetaGeometric(object):
         as S(T = t) recursively, returning only the relevant values
         for computing the individual contribution to the likelihood.
 
-        :param alpha: float
+        :param alpha: np.array
             A value for the alpha parameter.
 
-        :param beta: float
+        :param beta: np.array
             A value for the beta parameter.
 
         :param num_periods: Int
@@ -112,55 +112,27 @@ class ShiftedBetaGeometric(object):
             surviving the current period.
         """
         # Extreme values of alpha and beta can cause severe numerical stability
-        # problems! We avoid some of if by clipping the values of both alpha and
-        # beta parameters such that they lie between 1e-5 and 1e5.
-        alpha = max(min(alpha, 1e5), 1e-5)
-        beta = max(min(beta, 1e5), 1e-5)
+        # problems! We avoid some of if by clipping the values of both alpha
+        # and beta parameters such that they lie between 1e-5 and 1e5.
+        alpha = np.clip(alpha, 1e-5, 1e5)
+        beta = np.clip(beta, 1e-5, 1e5)
 
-        # Make sure num_periods is an integer!
-        num_periods = int(num_periods)
+        # Use death probability of the most recent period
+        p = betaln(alpha + 1, beta + num_periods - 1)
+        p -= betaln(alpha, beta)
 
-        # --- Initialize Recursion Values
-        # We hold off initializing p_old since it is not necessary until we
-        # enter the loop. s_old is initialized to 1, as it should.
-        s_old = 1.
-
-        # According to equation 7 in [1] the next values of p and s are given by
-        p_new = alpha / (alpha + beta)
-        s_new = 1. - p_new
-
-        # For subsequent periods we calculate the new values of both p and s
-        # recursively. Updating old and new values accordingly.
-        #
-        # ** Note that the loop starts with a value of two and extends to
-        # num_periods + 1, the reason behind this is that num_periods will
-        # usually represent the age of a subject. In the context of a
-        # subscription based business, the age of a subject often translates to
-        # how many payments have been made so far, and thus must be a positive
-        # integer.
-        # A value of one means the subject is in its first period and
-        # the entire population is still alive (by definition), hence the
-        # values initialized prior to the loop. **
-        for t in range(2, num_periods + 1):
-
-            # Update old values with current new values
-            p_old = 1. * p_new
-            s_old = 1. * s_new
-
-            # Update p_new with the latest p value
-            p_new = (beta + t - 2.) / (alpha + beta + t - 1.) * p_old
-
-            # Use the newly calculated p_new to update s_new
-            s_new = s_old - p_new
+        # Use survival value from previous period, hence the minus one
+        s = betaln(alpha, beta + num_periods - 1)
+        s -= betaln(alpha, beta)
 
         # Note that p_new is the likelihood of not making to the next period
         # while s_old is the likelihood of surviving the current period. Which
         # is used in the likelihood depends on whether or not the subject is
         # alive or dead.
-        return p_new, s_old
+        return p, s
 
     @staticmethod
-    def compute_alpha_beta(X, w_a, w_b):
+    def _compute_alpha_beta(X, w_a, w_b):
         """
         This method computes the float values of alpha and beta given a matrix
         of predictors X and an array of weighs wa and wb. It does so by taking
@@ -244,21 +216,17 @@ class ShiftedBetaGeometric(object):
 
         # Get the full alpha and beta for each sample and store the values in
         # ndarrays of shape (n_samples, )
-        alpha, beta = self.compute_alpha_beta(X, wa, wb)
+        alpha, beta = self._compute_alpha_beta(X, wa, wb)
 
         # loop over data and add the contribution to the log-likelihood from
         # each sample in the dataset.
         # Notice that once we have alpha and beta for each sample we do not
         # need the feature matrix to compute the contribution to the
         # log-likelihood.
-        for y, z, a, b in zip(age, alive, alpha, beta):
-            # Variables:
-            #   y: Age value (int)
-            #   z: Status - alive or dead (1 - 0)
-            #   a: alpha parameter of the sbs model (float)
-            #   b: beta parameter of the sbs model (float)
-
-            log_like += np.log(self._recursive_retention_stats(a, b, y)[z])
+        log_like += np.sum(self._log_retention_stats(alpha, beta, age)
+                           [0][np.where(alive == 0)[0]])
+        log_like += np.sum(self._log_retention_stats(alpha, beta, age)
+                           [1][np.where(alive == 1)[0]])
 
         # Negative log_like since we will use scipy's minimize object.
         return -log_like
@@ -286,7 +254,7 @@ class ShiftedBetaGeometric(object):
 
         # Make sure ages are all non negative...
         min_age = min(age)
-        if min(age) < min_age:
+        if min(age) < 1:
             raise ValueError("All values of age must be equal or greater to "
                              "one. The minimum value of "
                              "{} was found.".format(min_age))
@@ -300,7 +268,7 @@ class ShiftedBetaGeometric(object):
 
         # The amount of free space to create when printing based on the total
         # amount of restarts.
-        print_space = max(int(log10(restarts)) + 1, 5)
+        print_space = int(max(int(log10(restarts)) + 1, 5))
 
         # store the number of samples we are dealing with
         self.n_samples = age.shape[0]
@@ -314,9 +282,9 @@ class ShiftedBetaGeometric(object):
 
         # Initialize optimal value to None
         # I choose not to set it to, say, zero, or any other number, since I am
-        # not sure that the log-likelihood is bounded in anyway. So is better to
-        # initialize with None and use the first optimal value to get the ball
-        # rolling.
+        # not sure that the log-likelihood is bounded in anyway. So is better
+        # to initialize with None and use the first optimal value to get the
+        # ball rolling.
         optimal = None
 
         # To comply with scipy's optimization object, alpha and beta are
@@ -379,11 +347,11 @@ class ShiftedBetaGeometric(object):
 
             # Print current status if verbose is True.
             if self.verbose:
-                print_string = "{0: {3}} | {1:^10.10} | {2:13.8} |"
-                print(print_string.format(step + 1,
-                                          datetime.now() - start,
-                                          optimal,
-                                          print_space))
+                print_string = "{step: {space}} | {elap_time:^10} | {func:13.5f} |"
+                print(print_string.format(step=step + 1,
+                                          elap_time=str(datetime.now() - start)[:-7],
+                                          func=float(optimal),
+                                          space=print_space))
 
         # --- Parameter Values
         # Optimization is complete, time to save best parameters.
@@ -465,7 +433,7 @@ class ShiftedBetaGeometric(object):
         # the dataset X. Uses the instance variables self.alpha and self.beta
         # that store the fitted values for weights wa and wb used in the linear
         # model that sits on top of the SBS model.
-        alpha, beta = self.compute_alpha_beta(X, self.alpha, self.beta)
+        alpha, beta = self._compute_alpha_beta(X, self.alpha, self.beta)
 
         # To make it so that the formula resembles that of the paper we define
         # the parameter n as below.
@@ -528,7 +496,7 @@ class ShiftedBetaGeometric(object):
         # Load alpha and beta sampled from the posterior. These fully
         # determine the beta distribution governing the customer level
         # churn rates
-        alpha, beta = self.compute_alpha_beta(X, self.alpha, self.beta)
+        alpha, beta = self._compute_alpha_beta(X, self.alpha, self.beta)
 
         # set the number of samples
         n_samples = X.shape[0]
