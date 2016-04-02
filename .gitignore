@@ -1,0 +1,15 @@
+.ipynb_checkpoints
+*.pyc
+*.egg-info/
+build/
+dist/
+scratch/
+.idea/
+.DS_Store
+bo_eg*.png
+gif/
+queries/
+data/
+test_backup/
+notebooks/
+data/
