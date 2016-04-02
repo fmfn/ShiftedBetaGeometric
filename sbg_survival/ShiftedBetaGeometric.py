@@ -578,14 +578,14 @@ class ShiftedBetaGeometric(object):
         # is zero. That means the output for entries for which age=0 will start
         # at the very first column, which is the very first value of churn
         # (zero).
-        outputs[:, 0][age < 1] = True
+        outputs[:, 0][np.where(age < 1)[0]] = True
 
         # Second step is to turn on the second column fo the output matrix for
         # entries with age < 2.
         # The reasoning is similar as above but not only we start the output
         # for entries with age = 1, but we also continue the output for entries
         # with age = 0.
-        outputs[:, 1][age < 2] = True
+        outputs[:, 1][np.where(age < 2)[0]] = True
 
         # --- Fill output recursively (see eq.7 in [1]) ---
 
@@ -606,8 +606,8 @@ class ShiftedBetaGeometric(object):
             p_churn_matrix[:, period] += update * p_churn_matrix[:, period - 1]
 
             # Turn on the relevant rows using the logic explained above.
-            rows = (period >= age) & (period < (age + n_periods))
-            outputs[:, period][rows] += 1
+            rows = np.where((period >= age) & (period < (age + n_periods)))[0]
+            outputs[:, period][rows] = True
 
         # Return only the appropriate values and reshape the matrix.
         return p_churn_matrix[outputs].reshape((n_samples, n_periods))
@@ -731,14 +731,14 @@ class ShiftedBetaGeometric(object):
         # is zero. That means the output for entries for which age=0 will start
         # at the very first column, which is the very first value of churn
         # (zero).
-        outputs[:, 0][age < 1] = True
+        outputs[:, 0][np.where(age < 1)[0]] = True
 
         # Second step is to turn on the second column fo the output matrix for
         # entries with age < 2.
         # The reasoning is similar as above but not only we start the output
         # for entries with age = 1, but we also continue the output for entries
         # with age = 0.
-        outputs[:, 1][age < 2] = True
+        outputs[:, 1][np.where(age < 2)[0]] = True
 
         # --- Fill output recursively (see eq.7 in [1]) ---
         # Calculate remaining months recursively using the formulas
@@ -747,8 +747,8 @@ class ShiftedBetaGeometric(object):
             s[:, col] = s[:, col - 1] - p_of_t[:, col]
 
             # Turn on the relevant rows using the logic explained above.
-            rows = (col >= age) & (col < (age + n_periods))
-            outputs[:, col][rows] += 1
+            rows = np.where((col >= age) & (col < (age + n_periods)))[0]
+            outputs[:, col][rows] = True
 
         # pick correct entries
         s = s[outputs].reshape((n_samples, n_periods))
