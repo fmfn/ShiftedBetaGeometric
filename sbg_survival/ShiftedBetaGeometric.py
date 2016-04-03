@@ -223,10 +223,11 @@ class ShiftedBetaGeometric(object):
         # Notice that once we have alpha and beta for each sample we do not
         # need the feature matrix to compute the contribution to the
         # log-likelihood.
-        log_like += np.sum(self._log_retention_stats(alpha, beta, age)
-                           [0][np.where(alive == 0)[0]])
-        log_like += np.sum(self._log_retention_stats(alpha, beta, age)
-                           [1][np.where(alive == 1)[0]])
+        retention_probs = self._log_retention_stats(alpha, beta, age)
+
+        # Contribution to log likelihood based on status (alive vs. dead)
+        log_like += np.sum(retention_probs[0][np.where(alive == 0)[0]])
+        log_like += np.sum(retention_probs[1][np.where(alive == 1)[0]])
 
         # Negative log_like since we will use scipy's minimize object.
         return -log_like
