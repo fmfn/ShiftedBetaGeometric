@@ -1,7 +1,7 @@
 import numpy as np
 
 
-class DataHandler(object):
+class DataHandler:
     """
     DataHandler is an object to perform several manipulations to a pandas
     dataframe making it suitable to be fed to a ShiftedBeta object.

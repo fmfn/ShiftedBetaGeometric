@@ -4,7 +4,7 @@ from .data_handler import DataHandler
 from .shifted_beta_geometric import ShiftedBetaGeometric
 
 
-class SBGSurvival(object):
+class SBGSurvival:
     """
     This class implements an extended version of the Shifted-Beta-Geometric
     model by P. Fader and B. Hardie.
@@ -234,11 +234,16 @@ class SBGSurvival(object):
 
         # Create a dataframe with the churn_p_of_t matrix with all relevant
         # parameters.
-        out = pd.DataFrame(data=self.sb.churn_p_of_t(x, age=age, **kwargs))
+        out = pd.DataFrame(
+            data=self.sb.churn_p_of_t(x, age=age, **kwargs),
+            index=df.index,
+        )
+        out.columns.name = "age"
 
-        # Give columns a decent, generic name.
-        out.columns = ['period_{}'.format(col)
-                       for col in range(1, out.shape[1] + 1)]
+        out = pd.DataFrame(
+            data=out.unstack().swaplevel().sort_index(),
+            columns=["probability"],
+        )
 
         return out
 
@@ -278,7 +283,7 @@ class SBGSurvival(object):
         :return: pandas DataFrame
             A DataFrame with the survival_function matrix.
         """
-        x, y, z = self.dh.transform(df=df)
+        x, y, _ = self.dh.transform(df=df)
 
         # If age field is present in prediction dataframe, we may choose to
         # use it to calculate future churn. To do so, we first check if the
@@ -296,13 +301,16 @@ class SBGSurvival(object):
 
         # Create a dataframe with the churn_p_of_t matrix with all relevant
         # parameters.
-        out = pd.DataFrame(data=self.sb.survival_function(x,
-                                                          age=age,
-                                                          **kwargs))
+        out = pd.DataFrame(
+            data=self.sb.survival_function(x, age=age, **kwargs),
+            index=df.index,
+        )
+        out.columns.name = "age"
 
-        # Give columns a decent, generic name.
-        out.columns = ['period_{}'.format(col)
-                       for col in range(1, out.shape[1] + 1)]
+        out = pd.DataFrame(
+            data=out.unstack().swaplevel().sort_index(),
+            columns=["probability"],
+        )
 
         return out
 
@@ -375,4 +383,4 @@ class SBGSurvival(object):
         # Get LTVs and return a dataframe!
         ltvs = self.sb.derl(x, age=age, alive=alive, **kwargs)
 
-        return pd.DataFrame(data=ltvs, columns=['ltv'])
+        return pd.DataFrame(data=ltvs, columns=['ltv'], index=df.index)

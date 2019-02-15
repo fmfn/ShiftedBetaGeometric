@@ -5,7 +5,7 @@ from scipy.optimize import minimize
 from scipy.special import hyp2f1, betaln
 
 
-class ShiftedBetaGeometric(object):
+class ShiftedBetaGeometric:
     """
     This class implements an extended version of the Shifted-Beta-Geometric
     model by P. Fader and B. Hardie.
@@ -208,7 +208,10 @@ class ShiftedBetaGeometric(object):
         # Moreover different regularization parameters for alpha and beta
         # can be helpful, specially in extreme cases when the distribution
         # is near the extremes (0 or 1)
-        l2_reg = self.gammaa * sum(wa[1:]**2) + self.gammab * sum(wb[1:]**2)
+        l2_reg = (
+            self.gammaa * (wa[1:] ** 2).sum() +
+            self.gammab * (wb[1:] ** 2).sum()
+        )
 
         # update log-likelihood with regularization val.
         log_like -= l2_reg
@@ -249,12 +252,13 @@ class ShiftedBetaGeometric(object):
             An array with
 
         :param restarts: int
-            Number of times to run the optimization procedure with different seeds
+            Number of times to run the optimization procedure with different
+            seeds
         """
 
         # Make sure ages are all non negative...
         min_age = min(age)
-        if min(age) < 1:
+        if min_age < 1:
             raise ValueError("All values of age must be equal or greater to "
                              "one. The minimum value of "
                              "{} was found.".format(min_age))
@@ -364,8 +368,10 @@ class ShiftedBetaGeometric(object):
         # --- Regularization Penalty
         # Compute the regularization penalty applied to the parameter vectors.
         # Remember that there is no penalty for bias!
-        reg_penalty = self.gammaa * sum(self.alpha[1:]**2) + \
-            self.gammab * sum(self.beta[1:]**2)
+        reg_penalty = (
+            self.gammaa * (self.alpha[1:] ** 2).sum() +
+            self.gammab * (self.beta[1:] ** 2).sum()
+        )
 
         # Print some final remarks before we say goodbye.
         if self.verbose:
@@ -580,7 +586,7 @@ class ShiftedBetaGeometric(object):
         # Return only the appropriate values and reshape the matrix.
         return p_churn_matrix[outputs].reshape((n_samples, n_periods))
 
-    def survival_function(self, X, age=1,  n_periods=12):
+    def survival_function(self, X, age=1, n_periods=12):
         """
         survival_function computes the survival curve obtained from the model's
         parameters and assumptions. Using equation 7 from [1] and the alpha and
