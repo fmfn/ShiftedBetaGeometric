@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from datetime import date
+from datetime import date, datetime
 
 
 class SubscriptionData:
@@ -62,11 +62,10 @@ class SubscriptionData:
             self._df["subscription_current"] = self._data[subscription_current] * \
                 self._df["alive"]
 
-
         self._subscription_trend = pd.Series(
             (
                 (self.df["subscription_last"] - self.df["subscription_initial"]) /
-                np.maximum(self.df["age"], 1)
+                np.maximum(self.df["age"] - 1, 1)
             ),
             name="subscription_trend",
         )
@@ -84,8 +83,12 @@ class SubscriptionData:
             self.df[["start_date", "end_date"]].reset_index())
 
         if type(split_at) == str or type(split_at) == date:
-            self._cdtr = self._cdf[self._cdf["end_of_month"] < split_at]
-            self._cdva = self._cdf[self._cdf["end_of_month"] >= split_at]
+            train_map = self._cdf.index.map(
+                lambda ind: ind[1] < datetime.strptime(split_at, "%Y-%m-%d")
+            ).values.astype(bool)
+
+            self._cdtr = self._cdf[train_map]
+            self._cdva = self._cdf[~train_map]
         else:
             self._cdtr = self.cdf.join(self.dtr[[]], how="inner")
             self._cdva = self.cdf.join(self.dva[[]], how="inner")
@@ -176,17 +179,22 @@ class SubscriptionData:
             d["dummy"] = 1
             return d
 
-        def _is_active(row):
+        def _is_alive(row):
+            if ((row["start_date"].year == row["end_of_month"].year) and
+                (row["start_date"].month == row["end_of_month"].month)):
+
+                if ~pd.isnull(row["end_date"]):
+                    if ((row["end_date"].year == row["end_of_month"].year) and
+                        (row["end_date"].month == row["end_of_month"].month)):
+                        return 0
+                return 1
+
             if row["start_date"] > row["end_of_month"]:
                 return 0
 
             if ~pd.isnull(row["end_date"]):
                 if row["end_date"] < row["end_of_month"]:
                     return 0
-
-            if ((row["start_date"].year == row["end_of_month"].year) and
-                (row["start_date"].month == row["end_of_month"].month)):
-                return 0
 
             return 1
 
@@ -256,7 +264,7 @@ class SubscriptionData:
         df = df[df["end_of_month"] >= df["start_date"]]
 
         df["age"] = df.apply(_age, axis=1)
-        df["alive"] = df.apply(_is_active, axis=1)
+        df["alive"] = df.apply(_is_alive, axis=1)
         df["is_starting_month"] = df.apply(_starting_month, axis=1)
         df["is_cancelation_month"] = df.apply(_cancelation_month, axis=1)
 
@@ -270,7 +278,16 @@ class SubscriptionData:
             .groupby(df.index.get_level_values("account_id"))
             .agg({"alive": "cumsum"})
         )
-        df["subscription_value"] = (
+        df["subscription_value_base"] = (
+            df[["alive"]].join(
+                self.df[["subscription_initial"]]
+            )
+            .apply(
+                lambda row: row["subscription_initial"] * row["alive"],
+                axis=1
+            )
+        )
+        df["subscription_value_linear"] = (
             df
             .join(
                 self.df[[
@@ -282,9 +299,14 @@ class SubscriptionData:
             .join(self._subscription_trend)
             .apply(_calculate_subscription_progression, axis=1)
         )
-        df["value_to_date"] = (
+        df["value_to_date_base"] = (
             df
             .groupby(df.index.get_level_values("account_id"))
-            .agg({"subscription_value": "cumsum"})
+            .agg({"subscription_value_base": "cumsum"})
+        )
+        df["value_to_date_linear"] = (
+            df
+            .groupby(df.index.get_level_values("account_id"))
+            .agg({"subscription_value_linear": "cumsum"})
         )
         return df
