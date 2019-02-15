@@ -1,4 +1,3 @@
-from __future__ import print_function, division
 import numpy as np
 import pandas as pd
 
@@ -158,8 +157,8 @@ def simulate_data(size=10000, max_age=10):
 
     # Simulate age
     sim = data.apply(compute_age, axis=1)
-        
-    # Update age values    
+
+    # Update age values
     data['age'] = [s[0] for s in sim]
 
     # for simplicity we assume all come from same cohort, so it is easy to set

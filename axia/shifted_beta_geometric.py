@@ -1,8 +1,7 @@
-from __future__ import print_function
-from scipy.optimize import minimize
+import numpy as np
 from math import log10
 from datetime import datetime
-import numpy as np
+from scipy.optimize import minimize
 from scipy.special import hyp2f1, betaln
 
 

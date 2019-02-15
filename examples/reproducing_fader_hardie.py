@@ -1,7 +1,6 @@
-from __future__ import print_function
-from generate_data import make_raw_article_data
 import pandas as pd
-from sbg_survival import SBGSurvival
+from generate_data import make_raw_article_data
+from axia import SBGSurvival
 
 
 def basic_model():

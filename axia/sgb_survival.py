@@ -1,8 +1,7 @@
-from __future__ import print_function
-from .DataHandler import DataHandler
-from .ShiftedBetaGeometric import ShiftedBetaGeometric
 import numpy as np
 import pandas as pd
+from .data_handler import DataHandler
+from .shifted_beta_geometric import ShiftedBetaGeometric
 
 
 class SBGSurvival(object):

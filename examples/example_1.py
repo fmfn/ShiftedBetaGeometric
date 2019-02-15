@@ -1,7 +1,6 @@
-from __future__ import print_function
-from generate_data import simulate_data
 import pandas as pd
-from sbg_survival import SBGSurvival
+from axia import SBGSurvival
+from generate_data import simulate_data
 
 
 def main():
