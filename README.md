@@ -1,5 +1,5 @@
 <div align="center">
-  <img src=""><br><br>
+  <img src="https://github.com/fmfn/axia/blob/master/examples/axia-logo.png"><br><br>
 </div>
 
 -----------------
