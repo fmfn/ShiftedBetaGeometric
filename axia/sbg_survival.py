@@ -101,7 +101,7 @@ class SBGSurvival:
                                        gamma_beta=gamma_beta,
                                        verbose=verbose)
 
-    def fit(self, df, restarts=1):
+    def fit(self, df, sample_weight=None, restarts=1):
         """
         A method responsible for learning both the transformation of the data,
         including addition of a bias parameters, centering and re-scaling of
@@ -118,6 +118,12 @@ class SBGSurvival:
             age and categories must match. Extra columns with not affect
             anything.
 
+        :param sample_weight: ndarray of shape (n_samples, )
+            An array indicating how the contribution of each sample in the
+            data to the log likelihood should be weighted. Increasing the
+            weight of a sample increases its impact to the likelihood biasing
+            the model towards this sample.
+
         :param restarts: int
             Number of times to restart the optimization procedure with a
             different seed, to avoid getting stuck on local maxima.
@@ -126,10 +132,13 @@ class SBGSurvival:
         x, y, z = self.dh.fit_transform(df)
 
         # fit to data using the ShiftedBeta object.
-        self.sb.fit(X=x,
-                    age=y,
-                    alive=z,
-                    restarts=restarts)
+        self.sb.fit(
+            X=x,
+            age=y,
+            alive=z,
+            sample_weight=sample_weight,
+            restarts=restarts,
+        )
 
     def summary(self):
         """

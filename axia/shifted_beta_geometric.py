@@ -159,7 +159,7 @@ class ShiftedBetaGeometric:
         # Return the element-wise exponential
         return np.exp(waT_dot_X), np.exp(wbT_dot_X)
 
-    def _logp(self, X, age, alive, wa, wb):
+    def _logp(self, X, age, alive, wa, wb, sample_weight):
         """
         The LogLikelihood function. Given the data and relevant
         variables this function computed the loglikelihood.
@@ -179,6 +179,12 @@ class ShiftedBetaGeometric:
 
         :param wb: ndrray of shape (n_features, )
             The weights used to construct the beta parameter.
+
+        :param sample_weight: ndarray of shape (n_samples, )
+            An array indicating how the contribution of each sample in the
+            data to the log likelihood should be weighted. Increasing the
+            weight of a sample increases its impact to the likelihood biasing
+            the model towards this sample.
 
         :return: float
             Negative value of the loglikelihood
@@ -205,19 +211,19 @@ class ShiftedBetaGeometric:
         # target values. Here, the absence of weights (including bias) does
         # NOT lead to a trivial model, but one with a unreasonable
         # preference for alpha = exp(0) and beta = exp(0). ***
-        # Moreover different regularization parameters for alpha and beta
+        # Moreover, different regularization parameters for alpha and beta
         # can be helpful, specially in extreme cases when the distribution
-        # is near the extremes (0 or 1)
+        # is near the extremes (0 or 1).
         l2_reg = (
             self.gammaa * (wa[1:] ** 2).sum() +
             self.gammab * (wb[1:] ** 2).sum()
         )
 
-        # update log-likelihood with regularization val.
+        # update log-likelihood with regularization value.
         log_like -= l2_reg
 
         # Get the full alpha and beta for each sample and store the values in
-        # ndarrays of shape (n_samples, )
+        # ndarrays of shape (n_samples, ).
         alpha, beta = self._compute_alpha_beta(X, wa, wb)
 
         # loop over data and add the contribution to the log-likelihood from
@@ -227,14 +233,20 @@ class ShiftedBetaGeometric:
         # log-likelihood.
         retention_probs = self._log_retention_stats(alpha, beta, age)
 
-        # Contribution to log likelihood based on status (alive vs. dead)
-        log_like += np.sum(retention_probs[0][np.where(alive == 0)[0]])
-        log_like += np.sum(retention_probs[1][np.where(alive == 1)[0]])
+        # sample weight...
+        weighted_retention_probs = sample_weight * retention_probs
 
-        # Negative log_like since we will use scipy's minimize object.
-        return -log_like
+        # Contribution to log likelihood based on status (alive vs. dead).
+        log_like += np.sum(
+            weighted_retention_probs[0][np.where(alive == 0)[0]]
+        )
+        log_like += np.sum(
+            weighted_retention_probs[1][np.where(alive == 1)[0]]
+        )
 
-    def fit(self, X, age, alive, restarts=1):
+        return log_like
+
+    def fit(self, X, age, alive, sample_weight=None, restarts=1):
         """
         Method responsible for the learning step it takes all the relevant data
         as argument as well as the number of restarts with random seeds to
@@ -250,6 +262,12 @@ class ShiftedBetaGeometric:
 
         :param alive: ndarray of shape (n_samples, )
             An array with
+
+        :param sample_weight: ndarray of shape (n_samples, )
+            An array indicating how the contribution of each sample in the
+            data to the log likelihood should be weighted. Increasing the
+            weight of a sample increases its impact to the likelihood biasing
+            the model towards this sample.
 
         :param restarts: int
             Number of times to run the optimization procedure with different
@@ -269,6 +287,17 @@ class ShiftedBetaGeometric:
             raise ValueError('Values for alive must be either zero or one. A '
                              'value of '
                              '{} was found.'.format(list(alive_vals - {0, 1})))
+
+        if sample_weight is None:
+            sample_weight = np.ones(len(X))
+        else:
+            assert len(sample_weight) == len(X), (
+                "Expected {l} weights, ".format(l=len(X)) +
+                "but only got {sw}. ".format(sw=len(sample_weight)) +
+                "A sample weight must be " +
+                "provided for all training samples."
+            )
+            sample_weight = np.array(sample_weight)
 
         # The amount of free space to create when printing based on the total
         # amount of restarts.
@@ -326,14 +355,18 @@ class ShiftedBetaGeometric:
             # Notice that the variable p is an array of length 2 * n_params,
             # which is split in half when passed to the _logp method. First
             # half is alpha, second is beta.
-            new_opt = minimize(lambda p: self._logp(X=X,
-                                                    age=age,
-                                                    alive=alive,
-                                                    wa=p[:n_params],
-                                                    wb=p[n_params:]),
-                               guess,
-                               bounds=[(None, None)] * n_params * 2
-                               )
+            new_opt = minimize(
+                fun=lambda p: -self._logp(
+                    X=X,
+                    age=age,
+                    alive=alive,
+                    wa=p[:n_params],
+                    wb=p[n_params:],
+                    sample_weight=sample_weight,
+                ),
+                x0=guess,
+                bounds=[(None, None)] * n_params * 2,
+            )
 
             # For the first run only optimal is None, that being the case, we
             # set the current values to both optimal (function value) as well
