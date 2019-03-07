@@ -43,7 +43,7 @@ def noisy_model(n_samples=5000, noise_features=1):
 def main():
     basic_model()
     noisy_model(n_samples=10000, noise_features=10)
-    noisy_model(n_samples=100000, noise_features=100)
+    noisy_model(n_samples=1000, noise_features=100)
 
 
 if __name__ == '__main__':

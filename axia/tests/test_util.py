@@ -44,10 +44,9 @@ test_data["start_date"] = pd.to_datetime(test_data["start_date"])
 test_data["end_date"] = pd.to_datetime(test_data["end_date"])
 
 
-def _calculate_age(end, start):
-    now = datetime.now()
-    end_dates = end.fillna(now)
-
+def _calculate_age(end, start, split_at=None):
+    end_dates = end.fillna(
+        split_at if split_at is not None else datetime.now())
     return np.maximum(12 * (end_dates.dt.year - start.dt.year) + (end_dates.dt.month - start.dt.month), 1)
 
 
@@ -111,40 +110,48 @@ def test_cross_data():
         test_data.loc[188, "subscription_current"]
     )
 
-    # print(data.cdf.columns)
-    # print(data.cdf.loc[3].iloc[:, :4])
-    # print(data.cdf.loc[3].iloc[:, 4:])
-    # print(data.cdf.loc[11].iloc[:, :4])
-    # print(data.cdf.loc[11].iloc[:, 4:])
-    # print(data.cdf.loc[188].iloc[:, :4])
-    # print(data.cdf.loc[188].iloc[:, 4:7])
-    # print(data.cdf.loc[188].iloc[:, 7:])
-    # assert False
-
 def test_tabular_data_trva_date_split():
+    split_at = datetime(2018, 10, 21)
     data = SubscriptionData(
         data=test_data,
         subscription_initial="subscription_initial",
         subscription_current="subscription_current",
-        split_at="2018-10-21",
+        split_at=split_at,
     )
 
-    print(data.dtr.iloc[:, :4])
-    print(data.dva.iloc[:, :4])
-    print(data.dtr.iloc[:, 4:])
-    print(data.dva.iloc[:, 4:])
-    assert True
+    assert(all(data.dtr["start_date"] < split_at))
+    assert(all(
+        (data.dtr["end_date"] < split_at) |
+        pd.isnull(data.dtr["end_date"])
+    ))
+
+    assert(all(data.dva["start_date"] >= split_at))
+    assert(all(
+        (data.dva["end_date"] >= split_at) |
+        pd.isnull(data.dva["end_date"])
+    ))
+
+    assert all(
+        _calculate_age(
+            data.dtr["end_date"],
+            data.dtr["start_date"],
+            split_at=split_at
+        ) == data.dtr["age"]
+    )
+    assert all(_calculate_age(
+        data.dva["end_date"], data.dva["start_date"]) == data.dva["age"])
 
 def test_crossdata_trva_date_split():
+    split_at = datetime(2018, 10, 21)
     data = SubscriptionData(
         data=test_data,
         subscription_initial="subscription_initial",
         subscription_current="subscription_current",
-        split_at="2018-10-21",
+        split_at=split_at,
     )
 
-    assert data.cdtr.index.get_level_values("end_of_month").max() < datetime(2018, 10, 21)
-    assert data.cdva.index.get_level_values("end_of_month").min() >= datetime(2018, 10, 21)
+    assert data.cdtr.index.get_level_values("end_of_month").max() < split_at
+    assert data.cdva.index.get_level_values("end_of_month").min() >= split_at
 
     assert data.cdtr.loc[5]["alive"].iloc[0] == 1
     assert data.cdtr.loc[782]["alive"].iloc[0] == 0

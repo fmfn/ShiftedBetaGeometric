@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from .data_handler import DataHandler
+from .util import DataHandler
 from .shifted_beta_geometric import ShiftedBetaGeometric
 
 
