@@ -67,7 +67,7 @@ class ReportActuals(_BaseReport):
         })
 
         if smoothing:
-            report = report.rolling(window=smoothing).mean()
+            report = report.rolling(window=smoothing, min_periods=0).mean()
 
         return report
 
@@ -113,3 +113,10 @@ class ReportActuals(_BaseReport):
         for rax in ax:
             for cax in rax:
                 cax.grid(True)
+
+        ax[0][0].set_title("Cohort Size")
+        ax[0][1].set_title("Subscription Value")
+        ax[1][0].set_title("Retention")
+        ax[1][1].set_title("Cummulative Value")
+
+        return fig, ax
