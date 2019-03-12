@@ -12,7 +12,7 @@ class SubscriptionData:
         subscription_initial=None,
         subscription_current=None,
         additional_cols=None,
-        split_at=0.8,
+        split_at=None,
         ):
         """
         params:
@@ -36,19 +36,23 @@ class SubscriptionData:
         )
         self._dtr = self._df.copy()
         self._dva = self._df.copy()
+        split_at = split_at if split_at is not None else 1.0
 
         self._create_date_column(start_date_col, kind="start")
         self._create_date_column(end_date_col, kind="end")
 
         self._train_validation_split(split_at=split_at)
 
-        for split_kind, df in zip([None, "train", "validation"],
-                                  [self.df, self.dtr, self.dva]):
+        for _split_at, df in zip([None, split_at, split_at],
+                                 [self.df, self.dtr, self.dva]):
             df["age"] = df.apply(
-                lambda row: self._calculate_age(row, split_at, split_kind),
-                axis=1
+                lambda row: self._calculate_age(row, _split_at),
+                axis=1,
             )
-            df["alive"] = df["end_date"].apply(pd.isnull).astype(int)
+            df["alive"] = df.apply(
+                lambda row: self._is_alive(row, split_at),
+                axis=1,
+            )
 
             if subscription_initial is not None:
                 df["subscription_initial"] = df.join(
@@ -126,9 +130,13 @@ class SubscriptionData:
     def cdva(self):
         return self._cdva
 
-    def _calculate_age(self, row, split_at, split_kind):
+    @staticmethod
+    def _calculate_age(row, split_at=None):
+        if type(split_at) == datetime and row["start_date"] >= split_at:
+            return 1
+
         if pd.isnull(row["end_date"]):
-            if split_kind == "train" and type(split_at) == datetime:
+            if type(split_at) == datetime:
                 end_date = split_at
             else:
                 end_date = datetime.now()
@@ -138,10 +146,23 @@ class SubscriptionData:
         age = 12 * (end_date.year - row["start_date"].year)
         age += end_date.month - row["start_date"].month
 
-        assert age >= 0, (
-            "Something went wrong, check start and end dates make sense"
-        )
         return max(age, 1)
+
+    @staticmethod
+    def _is_alive(row, split_at=None):
+        if type(split_at) == datetime:
+            if row["start_date"] >= split_at:
+                return 1
+
+            if pd.isnull(row["end_date"]):
+                return 1
+
+            if row["end_date"] > split_at:
+                return 1
+
+            return 0
+
+        return int(pd.isnull(row["end_date"]))
 
     @staticmethod
     def _normalize_date_first_of_month(dt):
@@ -181,7 +202,7 @@ class SubscriptionData:
             )
         elif type(split_at) == datetime:
             self._dtr = self.df[self.df["start_date"] < split_at].copy()
-            self._dva = self.df[self.df["start_date"] >= split_at].copy()
+            self._dva = self.df.copy()
 
             # Make sure future end dates are not evident in the training set
             self._dtr['end_date'] = self._dtr["end_date"].apply(

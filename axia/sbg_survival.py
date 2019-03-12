@@ -190,7 +190,7 @@ class SBGSurvival:
         return pd.DataFrame(data=np.vstack([alpha, beta]),
                             index=['alpha', 'beta']).T
 
-    def predict_churn(self, df, age=None, **kwargs):
+    def predict_churn(self, df, n_periods, age=None, alive=None):
         """
         predict_churn is a method to compute churn rate for a number of periods
         conditioned on the age of the sample.
@@ -241,22 +241,51 @@ class SBGSurvival:
                                'the dataframe or passed separately as an '
                                'argument.')
 
+        # See the discussion above for age, exact same logic applies.
+        if alive is None:
+            alive = z
+        if alive is None:
+            raise RuntimeError('The "alive" must either be present in the '
+                               'dataframe or passed separately as an '
+                               'argument.')
+
+        # Keep track of the current state of each sample in the dataset
+        current_state = pd.DataFrame(
+            data={
+                "starting_age": age,
+                "alive": alive,
+            },
+            index=df.index,
+        )
+
         # Create a dataframe with the churn_p_of_t matrix with all relevant
         # parameters.
         out = pd.DataFrame(
-            data=self.sb.churn_p_of_t(x, age=age, **kwargs),
+            data=self.sb.churn_p_of_t(x, age=age, n_periods=n_periods),
             index=df.index,
+            columns=pd.Series(data=range(n_periods), name="period"),
         )
-        out.columns.name = "age"
+        out = (
+            pd.DataFrame(
+                data=out.unstack().swaplevel().sort_index(),
+                columns=["probability"],
+            )
+            .reset_index("period")
+            .join(current_state)
+        )
 
-        out = pd.DataFrame(
-            data=out.unstack().swaplevel().sort_index(),
-            columns=["probability"],
+        out["age"] = out["starting_age"] + out["period"]
+        out["probability"] = out["probability"] * out["alive"]
+
+        out = (
+            out
+            .set_index(["age", "period"], append=True)
+            .drop(["starting_age", "alive"], axis=1)
         )
 
         return out
 
-    def predict_survival(self, df, age=None, **kwargs):
+    def predict_survival(self, df, n_periods, age=None, alive=None):
         """
         predict_survival is a method to compute the survival curve for a number
         of periods conditioned on the age of the sample.
@@ -292,7 +321,7 @@ class SBGSurvival:
         :return: pandas DataFrame
             A DataFrame with the survival_function matrix.
         """
-        x, y, _ = self.dh.transform(df=df)
+        x, y, z = self.dh.transform(df=df)
 
         # If age field is present in prediction dataframe, we may choose to
         # use it to calculate future churn. To do so, we first check if the
@@ -308,17 +337,46 @@ class SBGSurvival:
                                'the dataframe or passed separately as an '
                                'argument.')
 
+        # See the discussion above for age, exact same logic applies.
+        if alive is None:
+            alive = z
+        if alive is None:
+            raise RuntimeError('The "alive" must either be present in the '
+                               'dataframe or passed separately as an '
+                               'argument.')
+
+        # Keep track of the current state of each sample in the dataset
+        current_state = pd.DataFrame(
+            data={
+                "starting_age": age,
+                "alive": alive,
+            },
+            index=df.index,
+        )
+
         # Create a dataframe with the churn_p_of_t matrix with all relevant
         # parameters.
         out = pd.DataFrame(
-            data=self.sb.survival_function(x, age=age, **kwargs),
+            data=self.sb.survival_function(x, age=age, n_periods=n_periods),
             index=df.index,
+            columns=pd.Series(data=range(n_periods), name="period"),
         )
-        out.columns.name = "age"
+        out = (
+            pd.DataFrame(
+                data=out.unstack().swaplevel().sort_index(),
+                columns=["probability"],
+            )
+            .reset_index("period")
+            .join(current_state)
+        )
 
-        out = pd.DataFrame(
-            data=out.unstack().swaplevel().sort_index(),
-            columns=["probability"],
+        out["age"] = out["starting_age"] + out["period"]
+        out["probability"] = out["probability"] * out["alive"]
+
+        out = (
+            out
+            .set_index(["age", "period"], append=True)
+            .drop(["starting_age", "alive"], axis=1)
         )
 
         return out

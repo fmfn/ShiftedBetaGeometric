@@ -1,4 +1,5 @@
 import pickle
+from datetime import datetime
 
 import sys
 sys.path.append('../')
@@ -21,10 +22,13 @@ def main():
             df[col].apply(func).astype("category")
             for col, func in jobber_data.transformations.items()
         ],
-        split_at="2018-01-01"
+        # split_at=0.8,
+        split_at=datetime(2018, 1, 1),
     )
 
     print("Saving subscription data object...")
+    # with open("./jobber_working_data-80_20_split.pkl", "wb") as f:
+    #     pickle.dump(data, f)
     with open("./jobber_working_data-20180101_split.pkl", "wb") as f:
         pickle.dump(data, f)
 
