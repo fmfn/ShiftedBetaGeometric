@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "axia"
+version = "0.1.0"
+authors = [
+  { name="Fernando Nogueira", email="author@example.com" },
+]
+description = "An alternative to survival analysis using the shifted beta-geometric model."
+readme = "README.md"
+requires-python = ">=3.5"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/fmfn/axia"
+"Bug Tracker" = "https://github.com/fmfn/axia/issues"
