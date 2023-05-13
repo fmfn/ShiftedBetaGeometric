@@ -1,6 +1,6 @@
 <div align="center">
-  <img src="https://github.com/fmfn/axia/blob/master/.github/axia-logo-2.jpg"><br><br>
-  <!-- <img src="https://github.com/fmfn/axia/blob/master/github/axia-logo.png"><br><br> -->
+  <!-- <img src="https://github.com/fmfn/axia/blob/master/.github/axia-logo-2.jpg"><br><br> -->
+  <img src="https://github.com/fmfn/axia/blob/master/github/axia-logo.png"><br><br>
 </div>
 
 -----------------
