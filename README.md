@@ -9,8 +9,6 @@ The axia package provides an implementation of an extension  of
 the Shifted-Beta-Geometric model by P. Fader & B. Hardie [1] to individuals in
 contractual settings with multiple predictor variables.
 
-It will soon provide a lot more...
-
 Axia offers a survival analysis like approach to modeling the
 behaviour of individuals in contractual settings. Given a set of features, ages
 and status (alive or dead), this package builds on top of the model developed
@@ -21,18 +19,14 @@ Head over to the examples folder to learn how to use axia.
 
 Installation
 ======
-Axia is not currently available on PyPi. To install the package,
-you will need to clone it and run the setup.py file. Use the following commands to
-get a copy from Github and install all dependencies:
+```bash
+pip3 install axia
+```
 
-    git clone https://github.com/fmfn/axia.git
-    cd axia
-    python setup.py install
 ### Dependencies
-* numpy
-* pandas
-* scipy
-* jupyter (for examples only)
+* numpy~=1.21.3
+* scipy~=1.7.1
+* pandas~=1.3.4
 
 References
 ===
